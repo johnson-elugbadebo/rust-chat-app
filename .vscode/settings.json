@@ -1,0 +1,32 @@
+{
+  "cSpell.words": [
+    "bindgen",
+    "bitflags",
+    "chacha",
+    "cpufeatures",
+    "dioxus",
+    "errno",
+    "getrandom",
+    "gloo",
+    "httparse",
+    "httpdate",
+    "itoa",
+    "libc",
+    "matchit",
+    "memchr",
+    "onclick",
+    "oninput",
+    "scopeguard",
+    "serde",
+    "smallvec",
+    "Stylesheet",
+    "syscall",
+    "thiserror",
+    "tungstenite",
+    "typenum",
+    "wasi",
+    "wasip",
+    "zerocopy",
+    "zmij"
+  ]
+}
