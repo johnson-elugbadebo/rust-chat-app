@@ -17,13 +17,16 @@ fn App() -> Element {
 
 #[component]
 fn Home() -> Element {
-  let mut message_list = use_signal(|| vec![]);
+  // Reactive state: chat history, current draft, and the WS read half (set after connect).
+  let mut message_list = use_signal(|| vec![]); // use_signal: Holds UI state; updates trigger re-renders.
   let mut message_content = use_signal(|| String::new());
   let mut receiver_ws = use_signal(|| None);
 
+  // Name gate: user must enter a name before seeing the chat UI.
   let mut name = use_signal(|| String::new());
   let mut has_name = use_signal(|| false);
 
+  // Outbound path: coroutine opens WS once, then sends each queued string as "name: text".
   let chat_client = use_coroutine(move |mut rx: UnboundedReceiver<String>| async move {
     let (mut sender, receiver) = WebSocket::open("ws://localhost:3000/chat").unwrap().split();
     receiver_ws.set(Some(receiver));
@@ -33,6 +36,8 @@ fn Home() -> Element {
     }
   });
 
+  // Inbound path: take the receiver once and append server messages to message_list.
+  // use_future: Background task that listens for incoming Message::Text and grows message_list.
   let _ = use_future(move || async move {
     if let Some(mut receiver) = receiver_ws.take() {
       while let Some(msg) = receiver.next().await {
@@ -41,7 +46,7 @@ fn Home() -> Element {
             Message::Text(content) => {
               message_list.write().push(content);
             }
-            _ => (),
+            _ => (), // Ignore binary / ping / other frame types.
           }
         }
       }
@@ -49,6 +54,8 @@ fn Home() -> Element {
   });
 
   rsx!(
+    // Pre-join screen: name input only.
+    // Two-step UX: name first, then chat.
     if !has_name() {
       div { class: "chat-container",
         div { class: "chat input-name",
@@ -66,15 +73,19 @@ fn Home() -> Element {
         }
       }
     } else {
+      // Main chat: message list + compose box.
       div { class: "chat-container",
         div { class: "chat",
           div { class: "message-container",
             {
                 let messages = message_list.read();
                 rsx! {
+                  // Newest first (server order reversed for display), shows newest messages at the top.
                   for item in messages.iter().rev() {
                     p {
                       class: "message-item",
+                      // Prefix before first ":" is treated as sender; match = "user-message".
+                      // Parses "Alice: hello" to style your own messages differently.
                       class: if item.split(':').next().unwrap_or("") == name() { "user-message" },
                       "{item}"
                     }
@@ -91,8 +102,8 @@ fn Home() -> Element {
             }
             button {
               onclick: move |_| {
-                  chat_client.send(message_content());
-                  message_content.set(String::new());
+                  chat_client.send(message_content()); // Queue send via coroutine.
+                  message_content.set(String::new()); // Clear draft after send.
               },
               disabled: if message_content().trim() == "" { true },
               "Send"
